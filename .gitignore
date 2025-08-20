@@ -16,6 +16,7 @@
 
 # Debugger Files
 *.pdb
+*.dwo
 
 # Compiled Dynamic libraries
 *.so
@@ -37,5 +38,21 @@
 *.out
 *.app
 
-# debug information files
-*.dwo
+# Arduino / ESP8266 specific
+*.elf
+*.bin
+*.hex
+*.eep
+
+# Backup files
+*~
+*.swp
+
+# Logs and databases
+*.log
+*.sql
+*.sqlite
+
+# OS generated files
+.DS_Store
+Thumbs.db
