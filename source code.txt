@@ -1,0 +1,93 @@
+#define TRIG_PIN 2   // GPIO2 (D4 on NodeMCU)
+#define ECHO_PIN 0   // GPIO0 (D3 on NodeMCU)
+#define BUZZER_PIN 14 // GPIO14 (D5 on NodeMCU)
+
+#include <ESP8266WiFi.h>
+#include <WiFiClientSecure.h>
+#include <UniversalTelegramBot.h>
+
+const char* ssid = "abc";
+const char* password = "12345678";
+const char* botToken = "7523614657:AAEmua2qSp3HK45PfAF5pgAIG7g5h4de1UM";
+const String chatID = "6607978365";
+
+WiFiClientSecure client;
+UniversalTelegramBot bot(botToken, client);
+
+unsigned long lastTimeBotRan;
+const int botRequestDelay = 1000;
+
+void setup() {
+    Serial.begin(115200);
+    pinMode(TRIG_PIN, OUTPUT);
+    pinMode(ECHO_PIN, INPUT);
+    pinMode(BUZZER_PIN, OUTPUT);
+
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(ssid, password);
+
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(1000);
+        Serial.print(".");
+    }
+    Serial.println("\nConnected to WiFi!");
+
+    client.setInsecure();
+    bot.sendMessage(chatID, "ESP8266 Connected to Telegram!", "");
+}
+
+void loop() {
+    long duration;
+    float distance;  // Use float for better precision
+
+    // Send trigger pulse
+    digitalWrite(TRIG_PIN, LOW);
+    delayMicroseconds(2);
+    digitalWrite(TRIG_PIN, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(TRIG_PIN, LOW);
+
+    // Read echo pulse
+    duration = pulseIn(ECHO_PIN, HIGH);
+    distance = (duration * 0.0343) / 2;  // Convert to cm
+
+    // Debugging: Print the measured distance in cm
+    Serial.print("Measured Distance: ");
+    Serial.print(distance);
+    Serial.println(" cm");
+
+    // If object is detected within 20 cm, alert
+    if (distance > 0 && distance < 20) {  // Ignore zero values (sensor error)
+        digitalWrite(BUZZER_PIN, HIGH);
+        delay(500);
+        digitalWrite(BUZZER_PIN, LOW);
+        bot.sendMessage(chatID, "🚨 Alert! Railway obstacles detected at " + String(distance) + " cm", "");
+    }
+
+    // Telegram bot command handler
+    if (millis() - lastTimeBotRan > botRequestDelay) {
+        int messageCount = bot.getUpdates(bot.last_message_received + 1);
+
+        while (messageCount) {
+            Serial.println("New message received!");
+            String messageText = bot.messages[0].text;
+            String senderID = bot.messages[0].chat_id;
+
+            if (messageText == "/start") {
+                bot.sendMessage(senderID, "Hello! ESP8266 is connected.", "");
+            } 
+            else if (messageText == "/status") {
+                bot.sendMessage(senderID, "ESP8266 is online!", "");
+            }
+            else {
+                bot.sendMessage(senderID, "Unknown command. Try /start or /status.", "");
+            }
+
+            messageCount = bot.getUpdates(bot.last_message_received + 1);
+        }
+        
+        lastTimeBotRan = millis();
+    }
+
+    delay(1000);  // Delay before next measurement
+}
